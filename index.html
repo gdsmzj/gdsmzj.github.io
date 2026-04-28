@@ -20,13 +20,13 @@
         <a class="btn-submit" id="btnSubmitIssue" href="#" target="_blank" rel="noopener">
           + 提交信息
         </a>
-        <button class="btn-icon" id="btnConfig" title="配置 GitHub 仓库">⚙</button>
+        <button class="btn-icon" id="btnConfig" title="配置 GitHub 仓库" style="display:none">⚙</button>
       </div>
     </div>
   </header>
 
-  <!-- 配置弹窗 -->
-  <div class="modal-backdrop" id="configModal">
+  <!-- 配置弹窗（隐藏，仅供脚本引用） -->
+  <div class="modal-backdrop" id="configModal" style="display:none!important">
     <div class="modal">
       <div class="modal-header">
         <h2 class="modal-title">配置 GitHub 仓库</h2>
@@ -112,7 +112,7 @@
       <div class="state-icon">⚙️</div>
       <p class="state-title">还未配置仓库</p>
       <p class="state-desc">点击右上角 ⚙ 按钮，填写 GitHub 仓库信息后即可加载数据。</p>
-      <button class="btn-primary" id="btnOpenConfig">立即配置</button>
+      <button class="btn-primary" id="btnOpenConfig" style="display:none">立即配置</button>
     </div>
 
     <div id="stateLoading" class="state-box" style="display:none">

@@ -8,11 +8,18 @@
 /* ── 配置存储 ─────────────────────────────── */
 const STORAGE_KEY = 'job_radar_cfg';
 
+/* 默认仓库配置，用户无需手动填写 */
+const DEFAULT_CONFIG = { owner: 'gdsmzj', repo: 'gdsmzj.github.io', token: '' };
+
 function loadConfig() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : { owner: '', repo: '', token: '' };
-  } catch { return { owner: '', repo: '', token: '' }; }
+    if (!raw) return { ...DEFAULT_CONFIG };
+    const saved = JSON.parse(raw);
+    // 若 owner/repo 为空则回退到默认值
+    if (!saved.owner || !saved.repo) return { ...DEFAULT_CONFIG, token: saved.token || '' };
+    return saved;
+  } catch { return { ...DEFAULT_CONFIG }; }
 }
 
 function saveConfig(cfg) {
@@ -445,9 +452,10 @@ function closeModal() {
 
 /* ── 初始化事件绑定 ───────────────────────── */
 function init() {
-  /* 配置弹窗 */
+  /* 配置弹窗（入口已隐藏，保留绑定以兼容） */
   document.getElementById('btnConfig').addEventListener('click', openModal);
-  document.getElementById('btnOpenConfig').addEventListener('click', openModal);
+  const btnOpenCfg = document.getElementById('btnOpenConfig');
+  if (btnOpenCfg) btnOpenCfg.addEventListener('click', openModal);
   document.getElementById('btnCloseModal').addEventListener('click', closeModal);
   document.getElementById('btnCancelConfig').addEventListener('click', closeModal);
   document.getElementById('configModal').addEventListener('click', e => {
