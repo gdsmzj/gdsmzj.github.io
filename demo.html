@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>职场雷达 · 好厂推荐 & 中介避雷（演示）</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-icon">📡</span>
+        <div>
+          <h1 class="brand-title">职场雷达</h1>
+          <p class="brand-sub">社区驱动 · 好厂推荐 · 中介避雷</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a class="btn-submit" id="btnSubmitIssue" href="#" target="_blank" rel="noopener">
+          + 提交信息
+        </a>
+        <button class="btn-icon" id="btnConfig" title="配置 GitHub 仓库">⚙</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 配置弹窗 -->
+  <div class="modal-backdrop" id="configModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title">配置 GitHub 仓库</h2>
+        <button class="modal-close" id="btnCloseModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">填写存储 Issues 的 GitHub 仓库信息，数据将从该仓库的 Issues 中实时读取。</p>
+        <label class="field-label">仓库所有者（用户名或组织名）
+          <input type="text" id="cfgOwner" placeholder="例如：octocat" />
+        </label>
+        <label class="field-label">仓库名称
+          <input type="text" id="cfgRepo" placeholder="例如：job-radar" />
+        </label>
+        <label class="field-label">
+          GitHub Token（可选，提高请求频率限制）
+          <input type="password" id="cfgToken" placeholder="ghp_xxxx（仅存储在本地）" />
+        </label>
+        <div class="modal-hint">
+          <strong>Issues 标题格式说明：</strong><br/>
+          <code>中介避雷/公司名/地点/中介名称</code><br/>
+          <code>直聘好厂/平台认证/岗位信息/工作地点/工作待遇/工作时长/薪资水平</code>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" id="btnSaveConfig">保存配置</button>
+        <button class="btn-secondary" id="btnCancelConfig">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主区域 -->
+  <main class="main-content">
+    <section class="stats-bar" id="statsBar" style="display:none">
+      <div class="stat-card">
+        <span class="stat-num" id="statTotal">0</span>
+        <span class="stat-label">总条目</span>
+      </div>
+      <div class="stat-card stat-good">
+        <span class="stat-num" id="statGood">0</span>
+        <span class="stat-label">好厂推荐</span>
+      </div>
+      <div class="stat-card stat-bad">
+        <span class="stat-num" id="statBad">0</span>
+        <span class="stat-label">中介避雷</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-num" id="statCities">0</span>
+        <span class="stat-label">覆盖城市</span>
+      </div>
+    </section>
+
+    <section class="filter-bar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" class="search-input" placeholder="搜索公司、岗位、城市、中介..." />
+      </div>
+      <div class="tab-group">
+        <button class="tab active" data-tab="all">全部</button>
+        <button class="tab tab-good" data-tab="good">好厂推荐</button>
+        <button class="tab tab-bad" data-tab="bad">中介避雷</button>
+      </div>
+      <div class="sort-wrap">
+        <select id="sortSelect" class="sort-select">
+          <option value="latest">最新发布</option>
+          <option value="oldest">最早发布</option>
+          <option value="hot">最多互动</option>
+        </select>
+      </div>
+    </section>
+
+    <div class="tag-cloud" id="tagCloud"></div>
+
+    <div id="stateEmpty" class="state-box" style="display:none">
+      <div class="state-icon">⚙️</div>
+      <p class="state-title">还未配置仓库</p>
+      <p class="state-desc">点击右上角 ⚙ 按钮，填写 GitHub 仓库信息后即可加载数据。</p>
+      <button class="btn-primary" id="btnOpenConfig">立即配置</button>
+    </div>
+    <div id="stateLoading" class="state-box" style="display:none">
+      <div class="spinner"></div>
+      <p class="state-title">正在加载数据…</p>
+    </div>
+    <div id="stateError" class="state-box" style="display:none">
+      <div class="state-icon">❌</div>
+      <p class="state-title" id="errorTitle">加载失败</p>
+      <p class="state-desc" id="errorDesc"></p>
+      <button class="btn-secondary" id="btnRetry">重新加载</button>
+    </div>
+    <div id="stateNoResult" class="state-box" style="display:none">
+      <div class="state-icon">🔭</div>
+      <p class="state-title">没有找到匹配的结果</p>
+      <p class="state-desc">试试换个关键词，或清空筛选条件。</p>
+    </div>
+
+    <div class="card-grid" id="cardGrid"></div>
+    <div class="load-more-wrap" id="loadMoreWrap" style="display:none">
+      <button class="btn-load-more" id="btnLoadMore">加载更多</button>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <p>数据来源于 GitHub Issues · 信息仅供参考 · <a id="repoLink" href="#">前往仓库查看原始数据</a></p>
+    <p style="margin-top:6px;color:#aaa">当前为演示模式（Mock 数据）</p>
+  </footer>
+
+  <script>
+  /* ===================== MOCK DATA ===================== */
+  const MOCK_ISSUES = [
+    {
+      number: 1,
+      title: "直聘好厂/BOSS直聘认证/前端工程师/北京·朝阳/五险一金+餐补/9:00-18:00/25-35k",
+      body: "公司：某互联网科技公司\n\n团队氛围非常好，扁平化管理，领导技术能力强。面试流程透明，3轮技术面+1轮HR。入职后有专人带，技术栈：React + TypeScript + Node.js。不加班文化落实较好，偶尔项目上线前会留到20点左右。食堂饭菜不错，午饭补贴15元。",
+      html_url: "#",
+      user: { login: "dev_alice", avatar_url: "https://github.com/github.png", html_url: "#" },
+      created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
+      updated_at: new Date(Date.now() - 86400000).toISOString(),
+      reactions: { "+1": 42, "-1": 0, confused: 0 },
+      comments: 8,
+      labels: [],
+      pull_request: undefined
+    },
+    {
+      number: 2,
+      title: "中介避雷/上海某科技有限公司/上海·静安/XX人力资源中介",
+      body: "踩坑经历：\n面试前中介承诺薪资25k，入职后实际到手只有18k，差价7k被中介截留。\n合同上写的是劳务派遣合同，而非正式员工合同。\n求职者务必注意：直接与企业HR沟通，拒绝通过该中介入职。",
+      html_url: "#",
+      user: { login: "job_hunter_88", avatar_url: "https://github.com/github.png", html_url: "#" },
+      created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+      updated_at: new Date(Date.now() - 4 * 86400000).toISOString(),
+      reactions: { "+1": 0, "-1": 31, confused: 12 },
+      comments: 15,
+      labels: [],
+      pull_request: undefined
+    },
+    {
+      number: 3,
+      title: "直聘好厂/猎聘认证/Java后端工程师/深圳·南山/六险一金+期权/弹性10:00-19:00/30-45k",
+      body: "公司：某新能源科技独角兽\n\n估值已超50亿，C轮融资。技术团队100+，Java体系为主，K8s部署。\n期权激励真实，上一批员工有人已经兑现。\n弹性上班，WFH每周2天，年终奖按季度发放，一般1-3个月薪资。\n面试5轮，时间跨度约2周，AI+算法题+系统设计。",
+      html_url: "#",
+      user: { login: "backend_bob", avatar_url: "https://github.com/github.png", html_url: "#" },
+      created_at: new Date(Date.now() - 1 * 86400000).toISOString(),
+      updated_at: new Date(Date.now() - 3600000).toISOString(),
+      reactions: { "+1": 67, "-1": 0, confused: 0 },
+      comments: 22,
+      labels: [],
+      pull_request: undefined
+    },
+    {
+      number: 4,
+      title: "中介避雷/广州某外包公司/广州·天河/德才人力派遣",
+      body: "这家公司通过中介招人，实际是外包到某银行做系统维护。\n中介费：首月工资的30%。\n合同为三方劳务合同，社保基数按最低标准缴纳。\n工作内容与JD完全不符，面试时说是产品研发，实际是甲方驻场运维。\n强烈建议同学们直接走银行官网应聘通道。",
+      html_url: "#",
+      user: { login: "it_worker_gz", avatar_url: "https://github.com/github.png", html_url: "#" },
+      created_at: new Date(Date.now() - 10 * 86400000).toISOString(),
+      updated_at: new Date(Date.now() - 9 * 86400000).toISOString(),
+      reactions: { "+1": 0, "-1": 28, confused: 9 },
+      comments: 7,
+      labels: [],
+      pull_request: undefined
+    },
+    {
+      number: 5,
+      title: "直聘好厂/领英认证/产品经理/上海·徐汇/五险一金+15天年假/朝9晚6/20-28k",
+      body: "公司：某跨国消费品集团中国区\n\n外资背景，管理规范，流程完善，适合喜欢工作生活平衡的同学。\n年假15天+法定节假日，几乎没有加班文化。\n产品团队约20人，分B端C端两个方向。英语沟通偶尔需要。\n缺点：决策链路较长，创新空间相对有限，晋升周期约2-3年。",
+      html_url: "#",
+      user: { login: "pm_carol", avatar_url: "https://github.com/github.png", html_url: "#" },
+      created_at: new Date(Date.now() - 3 * 86400000).toISOString(),
+      updated_at: new Date(Date.now() - 2 * 86400000).toISOString(),
+      reactions: { "+1": 35, "-1": 0, confused: 0 },
+      comments: 11,
+      labels: [],
+      pull_request: undefined
+    },
+    {
+      number: 6,
+      title: "中介避雷/北京某AI创业公司/北京·海淀/智联招聘认证中介",
+      body: "注意：该公司通过平台认证中介招聘，实为背调外包。\n入职承诺期权10000股，书面合同从未提及。\n试用期6个月按80%发薪，试用期满后以「绩效不达标」为由辞退，规避转正。\n已有5名同学有类似遭遇，有意维权可联系我。",
+      html_url: "#",
+      user: { login: "ai_whistle", avatar_url: "https://github.com/github.png", html_url: "#" },
+      created_at: new Date(Date.now() - 7 * 86400000).toISOString(),
+      updated_at: new Date(Date.now() - 6 * 86400000).toISOString(),
+      reactions: { "+1": 0, "-1": 54, confused: 18 },
+      comments: 34,
+      labels: [],
+      pull_request: undefined
+    },
+    {
+      number: 7,
+      title: "直聘好厂/BOSS直聘认证/数据分析师/深圳·福田/六险一金+股票/10:00-19:00/18-25k",
+      body: "公司：某头部电商平台深圳研发中心\n\n数据团队技术栈：Python + Spark + ClickHouse，数据量级大，成长空间强。\n公司提供股票（每季度vesting），历史股价表现稳定。\n团队Leader很nice，会主动帮下属争取资源。\n附近有班车接送，地铁口步行5分钟。健身房、图书馆配套齐全。",
+      html_url: "#",
+      user: { login: "data_dora", avatar_url: "https://github.com/github.png", html_url: "#" },
+      created_at: new Date(Date.now() - 4 * 86400000).toISOString(),
+      updated_at: new Date(Date.now() - 3 * 86400000).toISOString(),
+      reactions: { "+1": 29, "-1": 0, confused: 0 },
+      comments: 6,
+      labels: [],
+      pull_request: undefined
+    },
+    {
+      number: 8,
+      title: "中介避雷/成都某金融科技公司/成都·高新/猎头公司X",
+      body: "该猎头在投递简历时谎报公司规模（声称500+人，实际不足50人）。\n试用期3个月，底薪打7折。已有多人反馈面试套取作品集后消失。\n公司在高新区某写字楼，装修破旧，与官网图片严重不符。\n求职者面试前请务必实地核实。",
+      html_url: "#",
+      user: { login: "chengdu_coder", avatar_url: "https://github.com/github.png", html_url: "#" },
+      created_at: new Date(Date.now() - 15 * 86400000).toISOString(),
+      updated_at: new Date(Date.now() - 14 * 86400000).toISOString(),
+      reactions: { "+1": 0, "-1": 22, confused: 7 },
+      comments: 9,
+      labels: [],
+      pull_request: undefined
+    }
+  ];
+
+  /* ===================== APP LOGIC ==================== */
+  const state = {
+    allIssues: [],
+    filtered: [],
+    tab: 'all',
+    search: '',
+    activeTag: '',
+    sort: 'latest',
+    page: 1,
+    perPage: 12,
+  };
+
+  function parseIssue(issue) {
+    const raw = issue.title.trim();
+    const parts = raw.split('/').map(s => s.trim());
+    const type = parts[0];
+    const base = {
+      id: issue.number,
+      raw,
+      url: issue.html_url,
+      body: issue.body || '',
+      author: issue.user?.login || '匿名',
+      authorAvatar: issue.user?.avatar_url || '',
+      createdAt: issue.created_at,
+      reactions: issue.reactions || {},
+      comments: issue.comments || 0,
+    };
+    if (type === '中介避雷') {
+      return { ...base, kind: 'bad', company: parts[1] || '未知公司', city: parts[2] || '', agencyName: parts[3] || '' };
+    }
+    if (type === '直聘好厂') {
+      return { ...base, kind: 'good', platform: parts[1] || '', jobTitle: parts[2] || '', city: parts[3] || '', benefits: parts[4] || '', workHours: parts[5] || '', salary: parts[6] || '', company: parts[1] || '好厂' };
+    }
+    return { ...base, kind: 'unknown', company: parts[1] || raw, city: '' };
+  }
+
+  function buildTagCloud(issues) {
+    const cityCount = {};
+    issues.forEach(i => { if (i.city) { const c = i.city.trim(); cityCount[c] = (cityCount[c] || 0) + 1; } });
+    return Object.entries(cityCount).sort((a, b) => b[1] - a[1]).slice(0, 15).map(([name, count]) => ({ name, count }));
+  }
+
+  function applyFilters() {
+    let list = [...state.allIssues];
+    if (state.tab === 'good') list = list.filter(i => i.kind === 'good');
+    else if (state.tab === 'bad') list = list.filter(i => i.kind === 'bad');
+    if (state.activeTag) list = list.filter(i => i.city === state.activeTag);
+    if (state.search.trim()) {
+      const q = state.search.toLowerCase();
+      list = list.filter(i => [i.company, i.city, i.agencyName, i.jobTitle, i.salary, i.platform, i.body].some(v => v && v.toLowerCase().includes(q)));
+    }
+    if (state.sort === 'latest') list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    else if (state.sort === 'oldest') list.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    else if (state.sort === 'hot') list.sort((a, b) => ((b.reactions?.['+1'] || 0) + b.comments) - ((a.reactions?.['+1'] || 0) + a.comments));
+    state.filtered = list;
+    state.page = 1;
+  }
+
+  function formatDate(iso) {
+    const d = new Date(iso), now = new Date(), diff = (now - d) / 1000;
+    if (diff < 60) return '刚刚';
+    if (diff < 3600) return `${Math.floor(diff / 60)} 分钟前`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} 小时前`;
+    if (diff < 86400 * 30) return `${Math.floor(diff / 86400)} 天前`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function esc(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function renderCard(item) {
+    const a = document.createElement('a');
+    a.href = item.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    a.className = `entry-card card-${item.kind === 'good' ? 'good' : item.kind === 'bad' ? 'bad' : ''}`;
+    if (item.kind === 'good') a.innerHTML = renderGood(item);
+    else if (item.kind === 'bad') a.innerHTML = renderBad(item);
+    else a.innerHTML = `<div class="card-header"><span class="card-company">${esc(item.company)}</span></div><p class="card-body-text">${esc(item.body.slice(0,200))}</p><div class="card-footer"><span class="card-author">${esc(item.author)}</span><span class="card-date">${formatDate(item.createdAt)}</span></div>`;
+    return a;
+  }
+
+  function renderGood(item) {
+    const reacts = item.reactions?.['+1'] || 0;
+    return `
+      <div class="card-header">
+        <span class="card-company">${esc(item.jobTitle || item.company)}</span>
+        <span class="card-type-badge badge-good">✅ 好厂推荐</span>
+      </div>
+      <div class="card-meta">
+        ${item.city ? `<span class="meta-item"><span class="meta-icon">📍</span>${esc(item.city)}</span>` : ''}
+        ${item.jobTitle ? `<span class="meta-item"><span class="meta-icon">💼</span>${esc(item.jobTitle)}</span>` : ''}
+        ${item.platform ? `<span class="meta-item"><span class="meta-icon">🔖</span>${esc(item.platform)}</span>` : ''}
+      </div>
+      <div class="card-fields">
+        ${item.benefits ? `<div class="field-item"><span class="field-key">工作待遇</span><span class="field-val">${esc(item.benefits)}</span></div>` : ''}
+        ${item.workHours ? `<div class="field-item"><span class="field-key">工作时长</span><span class="field-val">${esc(item.workHours)}</span></div>` : ''}
+      </div>
+      ${item.salary ? `<span class="salary-pill">💰 ${esc(item.salary)}</span>` : ''}
+      ${item.body ? `<p class="card-body-text">${esc(item.body.slice(0,260))}</p>` : ''}
+      <div class="card-footer">
+        <span class="card-author">
+          ${item.authorAvatar ? `<img class="author-avatar" src="${esc(item.authorAvatar)}" loading="lazy"/>` : ''}
+          ${esc(item.author)}
+        </span>
+        <div class="card-reactions">
+          ${reacts ? `<span class="reaction">👍 ${reacts}</span>` : ''}
+          ${item.comments ? `<span class="reaction">💬 ${item.comments}</span>` : ''}
+          <span class="card-date">${formatDate(item.createdAt)}</span>
+        </div>
+      </div>`;
+  }
+
+  function renderBad(item) {
+    const reacts = (item.reactions?.['-1'] || 0) + (item.reactions?.confused || 0);
+    return `
+      <div class="card-header">
+        <span class="card-company">${esc(item.company)}</span>
+        <span class="card-type-badge badge-bad">⚠️ 中介避雷</span>
+      </div>
+      <div class="card-meta">
+        ${item.city ? `<span class="meta-item"><span class="meta-icon">📍</span>${esc(item.city)}</span>` : ''}
+        ${item.agencyName ? `<span class="meta-item"><span class="meta-icon">🏢</span>中介：${esc(item.agencyName)}</span>` : ''}
+      </div>
+      ${item.body ? `<p class="card-body-text">${esc(item.body.slice(0,260))}</p>` : ''}
+      <div class="card-footer">
+        <span class="card-author">
+          ${item.authorAvatar ? `<img class="author-avatar" src="${esc(item.authorAvatar)}" loading="lazy"/>` : ''}
+          ${esc(item.author)}
+        </span>
+        <div class="card-reactions">
+          ${reacts ? `<span class="reaction">⚠️ ${reacts}</span>` : ''}
+          ${item.comments ? `<span class="reaction">💬 ${item.comments}</span>` : ''}
+          <span class="card-date">${formatDate(item.createdAt)}</span>
+        </div>
+      </div>`;
+  }
+
+  function renderTagCloud() {
+    const cloud = document.getElementById('tagCloud'); cloud.innerHTML = '';
+    buildTagCloud(state.allIssues).forEach(({ name, count }) => {
+      const btn = document.createElement('button');
+      btn.className = 'tag' + (state.activeTag === name ? ' active-tag' : '');
+      btn.textContent = `${name} (${count})`;
+      btn.addEventListener('click', () => {
+        state.activeTag = state.activeTag === name ? '' : name;
+        applyFilters(); renderTagCloud(); renderGrid();
+      });
+      cloud.appendChild(btn);
+    });
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById('cardGrid');
+    const noResult = document.getElementById('stateNoResult');
+    const loadMoreWrap = document.getElementById('loadMoreWrap');
+    const visible = state.filtered.slice(0, state.page * 12);
+    grid.innerHTML = '';
+    if (!visible.length) { noResult.style.display = 'flex'; loadMoreWrap.style.display = 'none'; return; }
+    noResult.style.display = 'none';
+    visible.forEach(item => grid.appendChild(renderCard(item)));
+    loadMoreWrap.style.display = state.filtered.length > visible.length ? 'flex' : 'none';
+  }
+
+  function updateStats() {
+    const issues = state.allIssues;
+    const cities = new Set(issues.filter(i => i.city).map(i => i.city));
+    document.getElementById('statTotal').textContent = issues.length;
+    document.getElementById('statGood').textContent = issues.filter(i => i.kind === 'good').length;
+    document.getElementById('statBad').textContent = issues.filter(i => i.kind === 'bad').length;
+    document.getElementById('statCities').textContent = cities.size;
+    document.getElementById('statsBar').style.display = 'grid';
+  }
+
+  function openModal() { document.getElementById('configModal').classList.add('open'); }
+  function closeModal() { document.getElementById('configModal').classList.remove('open'); }
+
+  function init() {
+    document.getElementById('btnConfig').addEventListener('click', openModal);
+    document.getElementById('btnOpenConfig') && document.getElementById('btnOpenConfig').addEventListener('click', openModal);
+    document.getElementById('btnCloseModal').addEventListener('click', closeModal);
+    document.getElementById('btnCancelConfig').addEventListener('click', closeModal);
+    document.getElementById('configModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+    document.getElementById('btnSaveConfig').addEventListener('click', () => {
+      alert('演示模式下使用内置数据，配置保存后部署到 GitHub Pages 时将读取真实 Issues。');
+      closeModal();
+    });
+    document.getElementById('btnRetry').addEventListener('click', () => location.reload());
+    document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active'); state.tab = btn.dataset.tab; applyFilters(); renderGrid();
+    }));
+    let timer;
+    document.getElementById('searchInput').addEventListener('input', e => {
+      clearTimeout(timer); timer = setTimeout(() => { state.search = e.target.value; applyFilters(); renderGrid(); }, 250);
+    });
+    document.getElementById('sortSelect').addEventListener('change', e => { state.sort = e.target.value; applyFilters(); renderGrid(); });
+    document.getElementById('btnLoadMore').addEventListener('click', () => { state.page++; renderGrid(); });
+
+    // 加载 mock 数据
+    state.allIssues = MOCK_ISSUES.filter(i => !i.pull_request).map(parseIssue);
+    applyFilters(); updateStats(); renderTagCloud();
+    document.getElementById('cardGrid').style.display = 'grid';
+    renderGrid();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+  </script>
+</body>
+</html>

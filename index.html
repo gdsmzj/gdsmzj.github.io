@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>职场雷达 · 好厂推荐 & 中介避雷</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-icon">📡</span>
+        <div>
+          <h1 class="brand-title">职场雷达</h1>
+          <p class="brand-sub">社区驱动 · 好厂推荐 · 中介避雷</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a class="btn-submit" id="btnSubmitIssue" href="#" target="_blank" rel="noopener">
+          + 提交信息
+        </a>
+        <button class="btn-icon" id="btnConfig" title="配置 GitHub 仓库">⚙</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 配置弹窗 -->
+  <div class="modal-backdrop" id="configModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title">配置 GitHub 仓库</h2>
+        <button class="modal-close" id="btnCloseModal">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">填写存储 Issues 的 GitHub 仓库信息，数据将从该仓库的 Issues 中实时读取。</p>
+        <label class="field-label">仓库所有者（用户名或组织名）
+          <input type="text" id="cfgOwner" placeholder="例如：octocat" />
+        </label>
+        <label class="field-label">仓库名称
+          <input type="text" id="cfgRepo" placeholder="例如：job-radar" />
+        </label>
+        <label class="field-label">
+          GitHub Token（可选，提高请求频率限制）
+          <input type="password" id="cfgToken" placeholder="ghp_xxxx（仅存储在本地）" />
+        </label>
+        <div class="modal-hint">
+          <strong>Issues 标题格式说明：</strong><br/>
+          <code>中介避雷/公司名/地点/中介名称</code><br/>
+          <code>直聘好厂/平台认证/岗位信息/工作地点/工作待遇/工作时长/薪资水平</code>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" id="btnSaveConfig">保存配置</button>
+        <button class="btn-secondary" id="btnCancelConfig">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主区域 -->
+  <main class="main-content">
+    <!-- 统计栏 -->
+    <section class="stats-bar" id="statsBar" style="display:none">
+      <div class="stat-card">
+        <span class="stat-num" id="statTotal">0</span>
+        <span class="stat-label">总条目</span>
+      </div>
+      <div class="stat-card stat-good">
+        <span class="stat-num" id="statGood">0</span>
+        <span class="stat-label">好厂推荐</span>
+      </div>
+      <div class="stat-card stat-bad">
+        <span class="stat-num" id="statBad">0</span>
+        <span class="stat-label">中介避雷</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-num" id="statCities">0</span>
+        <span class="stat-label">覆盖城市</span>
+      </div>
+    </section>
+
+    <!-- 搜索 & 筛选 -->
+    <section class="filter-bar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input
+          type="text"
+          id="searchInput"
+          class="search-input"
+          placeholder="搜索公司、岗位、城市、中介..."
+        />
+      </div>
+      <div class="tab-group">
+        <button class="tab active" data-tab="all">全部</button>
+        <button class="tab tab-good" data-tab="good">好厂推荐</button>
+        <button class="tab tab-bad" data-tab="bad">中介避雷</button>
+      </div>
+      <div class="sort-wrap">
+        <select id="sortSelect" class="sort-select">
+          <option value="latest">最新发布</option>
+          <option value="oldest">最早发布</option>
+          <option value="hot">最多互动</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- 标签云 -->
+    <div class="tag-cloud" id="tagCloud"></div>
+
+    <!-- 空状态/加载状态 -->
+    <div id="stateEmpty" class="state-box" style="display:none">
+      <div class="state-icon">⚙️</div>
+      <p class="state-title">还未配置仓库</p>
+      <p class="state-desc">点击右上角 ⚙ 按钮，填写 GitHub 仓库信息后即可加载数据。</p>
+      <button class="btn-primary" id="btnOpenConfig">立即配置</button>
+    </div>
+
+    <div id="stateLoading" class="state-box" style="display:none">
+      <div class="spinner"></div>
+      <p class="state-title">正在加载数据…</p>
+    </div>
+
+    <div id="stateError" class="state-box" style="display:none">
+      <div class="state-icon">❌</div>
+      <p class="state-title" id="errorTitle">加载失败</p>
+      <p class="state-desc" id="errorDesc"></p>
+      <button class="btn-secondary" id="btnRetry">重新加载</button>
+    </div>
+
+    <div id="stateNoResult" class="state-box" style="display:none">
+      <div class="state-icon">🔭</div>
+      <p class="state-title">没有找到匹配的结果</p>
+      <p class="state-desc">试试换个关键词，或清空筛选条件。</p>
+    </div>
+
+    <!-- 卡片列表 -->
+    <div class="card-grid" id="cardGrid"></div>
+
+    <!-- 加载更多 -->
+    <div class="load-more-wrap" id="loadMoreWrap" style="display:none">
+      <button class="btn-load-more" id="btnLoadMore">加载更多</button>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <p>数据来源于 GitHub Issues · 信息仅供参考 · <a id="repoLink" href="#" target="_blank">前往仓库查看原始数据</a></p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
