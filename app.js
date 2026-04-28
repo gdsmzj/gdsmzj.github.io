@@ -48,7 +48,7 @@ async function fetchIssues(page = 1) {
   const { owner, repo, token } = state.config;
   if (!owner || !repo) throw new Error('未配置仓库');
 
-  const url = `${GITHUB_API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues?state=open&per_page=100&page=${page}`;
+  const url = `${GITHUB_API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues?state=closed&per_page=100&page=${page}`;
   const headers = { Accept: 'application/vnd.github.v3+json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
